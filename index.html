@@ -1,169 +1,793 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Private 2-Person Link</title>
-    <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
-        video { width: 45%; border: 2px solid #5865f2; border-radius: 8px; margin: 10px; background: black; }
-        textarea { width: 90%; height: 100px; background: #2f3136; color: #dcddde; border: none; padding: 10px; margin: 10px 0; }
-        button { padding: 10px 20px; background: #5865f2; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
-        .chat-box { width: 90%; height: 150px; overflow-y: scroll; background: #2f3136; padding: 10px; margin-top: 20px; border-radius: 8px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrivateLink — P2P Call</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #7c6aff;
+    --accent2: #ff6a9a;
+    --green: #4ade80;
+    --red: #f87171;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(22,22,26,0.9);
+    backdrop-filter: blur(10px);
+    position: relative;
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .status-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+  .status-pill.connected { border-color: var(--green); color: var(--green); background: rgba(74,222,128,0.08); }
+  .status-pill.connecting { border-color: var(--accent); color: var(--accent); animation: pulse 1.5s infinite; }
+  .status-pill.error { border-color: var(--red); color: var(--red); }
+
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+
+  /* ── Main layout ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Setup Panel ── */
+  .setup-panel {
+    width: 360px;
+    min-width: 320px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .room-id-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .room-id-display code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    flex: 1;
+    letter-spacing: 3px;
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .join-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  input[type="text"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    letter-spacing: 3px;
+    width: 100%;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]::placeholder { color: var(--muted); letter-spacing: 1px; font-size: 0.85rem; }
+  input[type="text"]:focus { border-color: var(--accent); }
+
+  button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: #6a58e8; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger {
+    background: rgba(248,113,113,0.1);
+    color: var(--red);
+    border: 1px solid rgba(248,113,113,0.3);
+  }
+  .btn-danger:hover { background: rgba(248,113,113,0.2); }
+
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1rem;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .control-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .control-btn:hover { border-color: var(--accent); }
+  .control-btn.active { background: rgba(124,106,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .control-btn.muted { background: rgba(248,113,113,0.1); border-color: var(--red); color: var(--red); }
+
+  /* ── Video area ── */
+  .video-chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .videos {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    height: 40%;
+    min-height: 180px;
+    background: #0a0a0c;
+  }
+
+  video {
+    flex: 1;
+    border-radius: 12px;
+    background: #111;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+
+  .video-wrapper {
+    flex: 1;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #111;
+  }
+
+  .video-wrapper video { width: 100%; height: 100%; border: none; border-radius: 0; }
+
+  .video-label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: white;
+    background: rgba(0,0,0,0.6);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .video-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+  }
+
+  .avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+  }
+
+  /* ── Chat ── */
+  .chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+    animation: msgIn 0.2s ease;
+  }
+  @keyframes msgIn { from { opacity:0; transform: translateY(4px) } }
+
+  .msg.me { align-self: flex-end; align-items: flex-end; }
+  .msg.them { align-self: flex-start; }
+  .msg.system { align-self: center; align-items: center; }
+
+  .msg-bubble {
+    padding: 8px 14px;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  .msg.me .msg-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+  .msg.them .msg-bubble { background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg.system .msg-bubble {
+    background: transparent;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  .msg-name {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 3px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 10px 18px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    letter-spacing: normal;
+    text-transform: none;
+    transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+
+  .send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .send-btn:hover { background: #6a58e8; transform: scale(1.05); }
+
+  .info-box {
+    background: rgba(124,106,255,0.06);
+    border: 1px solid rgba(124,106,255,0.2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .info-box strong { color: var(--text); }
+
+  /* Volume indicator */
+  .vol-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .vol-fill {
+    height: 100%;
+    background: var(--green);
+    width: 0%;
+    transition: width 0.1s;
+    border-radius: 3px;
+  }
+</style>
 </head>
 <body>
-    <h2>Private P2P Voice, Video & Screen</h2>
-    
-    <div style="display:flex; justify-content:center; width: 100%;">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
+
+<header>
+  <div class="logo">Private<span>Link</span></div>
+  <div class="status-pill" id="statusPill">● initializing</div>
+</header>
+
+<div class="main">
+  <!-- Setup Panel -->
+  <div class="setup-panel">
+
+    <div>
+      <div class="section-label">Your Room ID</div>
+      <div class="room-id-display">
+        <code id="myIdDisplay">——</code>
+        <button class="copy-btn" id="copyBtn" onclick="copyRoomId()">Copy</button>
+      </div>
+      <div class="vol-bar" style="margin-top:8px"><div class="vol-fill" id="volFill"></div></div>
+    </div>
+
+    <div class="divider">or join friend</div>
+
+    <div class="join-group">
+      <div class="section-label">Friend's Room ID</div>
+      <input type="text" id="friendId" maxlength="8" placeholder="Paste their ID...">
+      <button class="btn-primary" onclick="callFriend()">📞 Call Friend</button>
     </div>
 
     <div>
-        <button onclick="startCall()">1. Generate My Link</button>
-        <button onclick="answerCall()">2. Paste Friend's Link & Connect</button>
-        <button onclick="shareScreen()">Share Screen</button>
+      <div class="section-label">Controls</div>
+      <div class="controls">
+        <button class="control-btn" id="muteBtn" onclick="toggleMute()">🎙️ Mute</button>
+        <button class="control-btn" id="screenBtn" onclick="toggleScreen()">🖥️ Screen</button>
+        <button class="control-btn btn-danger" id="hangBtn" onclick="hangUp()" style="display:none">📵 Hang Up</button>
+      </div>
     </div>
 
-    <p>Step 1: Copy this and send to friend:</p>
-    <textarea id="offerText" readonly placeholder="Click 'Generate' to see your link..."></textarea>
-    
-    <p>Step 2: Paste friend's link here:</p>
-    <textarea id="answerText" placeholder="Paste your friend's code here..."></textarea>
+    <div class="info-box">
+      <strong>How it works:</strong><br>
+      1. Share your <strong>Room ID</strong> with a friend<br>
+      2. They paste it and click <strong>Call</strong><br>
+      3. Audio streams directly P2P — no servers store your call<br><br>
+      <strong>Screen share:</strong> click Screen during a call
+    </div>
 
-    <div class="chat-box" id="chat"><b>System:</b> Waiting for connection...</div>
-    <input type="text" id="msgInput" placeholder="Type a message..." style="width:80%; padding:10px; margin-top:10px;">
-    <button onclick="sendMessage()">Send</button>
+  </div>
 
-    <script>
-    let localStream;
-    let peerConnection;
-    let dataChannel;
-    // STUN servers help peers find each other behind firewalls
-    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  <!-- Video + Chat -->
+  <div class="video-chat">
+    <div class="videos">
+      <div class="video-wrapper" id="localWrapper">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div class="video-placeholder" id="localPlaceholder">
+          <div class="avatar">🎙️</div>
+          <span style="font-size:0.75rem;color:var(--muted)">You (audio only)</span>
+        </div>
+        <div class="video-label">You</div>
+      </div>
+      <div class="video-wrapper" id="remoteWrapper">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="video-placeholder" id="remotePlaceholder">
+          <div class="avatar">👤</div>
+          <span style="font-size:0.75rem;color:var(--muted)">Waiting for friend…</span>
+        </div>
+        <div class="video-label">Friend</div>
+      </div>
+    </div>
 
-    function updateStatus(msg) {
-        document.getElementById('chat').innerHTML += `<br><i style="color:yellow">Status: ${msg}</i>`;
-        console.log(msg);
+    <div class="chat-area">
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg system"><div class="msg-bubble">End-to-end encrypted · Private P2P</div></div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" type="text" id="chatInput" placeholder="Message…" onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send-btn" onclick="sendMsg()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let peer, currentCall, dataConn;
+let localStream, screenStream;
+let isMuted = false;
+let isScreenSharing = false;
+
+// ── Generate random 6-char room ID ──────────────────────────────────
+function genId() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+// ── Initialize PeerJS ──────────────────────────────────────────────
+function initPeer() {
+  const myId = genId();
+  document.getElementById('myIdDisplay').textContent = myId;
+  setStatus('connecting', 'connecting…');
+
+  peer = new Peer(myId, {
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
+    path: '/',
+    debug: 0
+  });
+
+  peer.on('open', id => {
+    setStatus('ready', '● ready');
+    sysMsg('Your Room ID: ' + id + ' — share it!');
+    initAudio();
+  });
+
+  peer.on('error', e => {
+    setStatus('error', '● error');
+    sysMsg('Connection error: ' + e.type + '. Try refreshing.');
+    console.error(e);
+  });
+
+  // Incoming call
+  peer.on('call', call => {
+    sysMsg('Incoming call… answering…');
+    currentCall = call;
+    call.answer(localStream);
+    handleCallStream(call);
+    showHangUp();
+  });
+
+  // Incoming data connection
+  peer.on('connection', conn => {
+    dataConn = conn;
+    setupDataConn(conn);
+  });
+}
+
+// ── Audio init ─────────────────────────────────────────────────────
+async function initAudio() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    document.getElementById('localVideo').srcObject = localStream;
+    sysMsg('🎙️ Microphone active');
+    setupVolumeIndicator();
+  } catch(e) {
+    sysMsg('⚠️ Mic error: ' + e.message);
+    setStatus('error', '● mic error');
+    // Create empty stream so calls can still proceed (screen share only)
+    localStream = new MediaStream();
+  }
+}
+
+// ── Volume indicator ───────────────────────────────────────────────
+function setupVolumeIndicator() {
+  try {
+    const ac = new AudioContext();
+    const src = ac.createMediaStreamSource(localStream);
+    const analyser = ac.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const fill = document.getElementById('volFill');
+    (function tick() {
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a,b) => a+b) / data.length;
+      fill.style.width = Math.min(avg * 2, 100) + '%';
+      requestAnimationFrame(tick);
+    })();
+  } catch(e) {}
+}
+
+// ── Call ────────────────────────────────────────────────────────────
+function callFriend() {
+  const friendId = document.getElementById('friendId').value.trim().toUpperCase();
+  if (!friendId || friendId.length < 4) return sysMsg('⚠️ Enter your friend\'s Room ID first');
+  if (!localStream) return sysMsg('⚠️ Microphone not ready yet');
+
+  sysMsg('📞 Calling ' + friendId + '…');
+  setStatus('connecting', '● calling…');
+
+  currentCall = peer.call(friendId, localStream);
+  handleCallStream(currentCall);
+  showHangUp();
+
+  // Data channel for chat
+  dataConn = peer.connect(friendId);
+  setupDataConn(dataConn);
+}
+
+function handleCallStream(call) {
+  call.on('stream', remoteStream => {
+    const vid = document.getElementById('remoteVideo');
+    vid.srcObject = remoteStream;
+    document.getElementById('remotePlaceholder').style.display = 'none';
+    setStatus('connected', '● connected');
+    sysMsg('✅ Connected!');
+  });
+
+  call.on('close', () => {
+    setStatus('ready', '● ready');
+    sysMsg('📵 Call ended');
+    document.getElementById('remoteVideo').srcObject = null;
+    document.getElementById('remotePlaceholder').style.display = 'flex';
+    document.getElementById('hangBtn').style.display = 'none';
+  });
+
+  call.on('error', e => sysMsg('⚠️ Call error: ' + e));
+}
+
+// ── Data / Chat ────────────────────────────────────────────────────
+function setupDataConn(conn) {
+  conn.on('open', () => sysMsg('💬 Chat connected'));
+  conn.on('data', data => appendMsg('Friend', data, 'them'));
+  conn.on('close', () => sysMsg('💬 Chat disconnected'));
+  conn.on('error', e => console.error(e));
+}
+
+function sendMsg() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  if (!dataConn || dataConn.open !== true) {
+    sysMsg('⚠️ Chat not connected yet');
+    return;
+  }
+  dataConn.send(msg);
+  appendMsg('You', msg, 'me');
+  input.value = '';
+}
+
+function appendMsg(name, text, type) {
+  const chat = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + type;
+  div.innerHTML = (type !== 'system' && type !== 'me' ? `<div class="msg-name">${name}</div>` : '') +
+    `<div class="msg-bubble">${escHtml(text)}</div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function sysMsg(text) {
+  appendMsg('', text, 'system');
+}
+
+// ── Controls ───────────────────────────────────────────────────────
+function toggleMute() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+  const btn = document.getElementById('muteBtn');
+  btn.textContent = isMuted ? '🔇 Unmute' : '🎙️ Mute';
+  btn.classList.toggle('muted', isMuted);
+}
+
+async function toggleScreen() {
+  if (isScreenSharing) {
+    // Stop screen share, revert to audio
+    if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+    screenStream = null;
+    isScreenSharing = false;
+    document.getElementById('localVideo').srcObject = localStream;
+    document.getElementById('localPlaceholder').style.display = 'flex';
+    document.getElementById('screenBtn').textContent = '🖥️ Screen';
+    document.getElementById('screenBtn').classList.remove('active');
+
+    // Replace track back (no video to revert to, remove video senders)
+    if (currentCall) {
+      const sender = currentCall.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) currentCall.peerConnection.removeTrack(sender);
+    }
+    return;
+  }
+
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    const videoTrack = screenStream.getVideoTracks()[0];
+
+    document.getElementById('localVideo').srcObject = screenStream;
+    document.getElementById('localPlaceholder').style.display = 'none';
+    isScreenSharing = true;
+    document.getElementById('screenBtn').textContent = '⏹ Stop';
+    document.getElementById('screenBtn').classList.add('active');
+
+    if (currentCall) {
+      const pc = currentCall.peerConnection;
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) {
+        sender.replaceTrack(videoTrack);
+      } else {
+        pc.addTrack(videoTrack, screenStream);
+      }
     }
 
-    async function init() {
-        updateStatus("Requesting Microphone (Audio Only)...");
-        try {
-            // We set video: false because you don't have a camera
-            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-            updateStatus("Microphone active.");
-            
-            // Even though there is no video, we attach the stream to hear yourself test
-            document.getElementById('localVideo').srcObject = localStream;
-        } catch (e) {
-            updateStatus("CRITICAL ERROR: " + e.message);
-            alert("Mic error: " + e.message + ". Ensure your mic is plugged in.");
-        }
-    }
+    videoTrack.onended = () => toggleScreen();
+  } catch(e) {
+    sysMsg('⚠️ Screen share failed: ' + e.message);
+  }
+}
 
-    async function startCall() {
-        if (!localStream) await init();
-        
-        updateStatus("Creating Connection...");
-        peerConnection = new RTCPeerConnection(config);
-        
-        // Add only the audio track
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+function hangUp() {
+  if (currentCall) { currentCall.close(); currentCall = null; }
+  if (dataConn) { dataConn.close(); dataConn = null; }
+  document.getElementById('hangBtn').style.display = 'none';
+  setStatus('ready', '● ready');
+  sysMsg('📵 You hung up');
+}
 
-        // Setup Chat
-        dataChannel = peerConnection.createDataChannel("chat");
-        setupDataChannel();
+// ── Helpers ────────────────────────────────────────────────────────
+function copyRoomId() {
+  const id = document.getElementById('myIdDisplay').textContent;
+  if (id === '——') return;
+  navigator.clipboard.writeText(id).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
 
-        peerConnection.onicecandidate = e => {
-            if (e.candidate) {
-                updateStatus("Building connection link...");
-            } else {
-                updateStatus("Link ready! Copy the code below.");
-            }
-            document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
-        };
+function setStatus(cls, text) {
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill ' + cls;
+  pill.textContent = text;
+}
 
-        // When your friend sends audio or screen share
-        peerConnection.ontrack = e => {
-            updateStatus("Friend connected! Audio/Video started.");
-            document.getElementById('remoteVideo').srcObject = e.streams[0];
-        };
+function showHangUp() {
+  document.getElementById('hangBtn').style.display = 'flex';
+}
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
-    }
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
-    async function answerCall() {
-        const input = document.getElementById('answerText').value;
-        if (!input) return alert("Paste your friend's code first!");
-        
-        const remoteData = JSON.parse(input);
-        
-        if (!peerConnection) { 
-            await init();
-            peerConnection = new RTCPeerConnection(config);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            
-            peerConnection.onicecandidate = e => {
-                document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
-            };
-            
-            peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
-            peerConnection.ondatachannel = e => { dataChannel = e.channel; setupDataChannel(); };
-            
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            updateStatus("Answer generated. Send this back to your friend.");
-        } else {
-            updateStatus("Connecting...");
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
-        }
-    }
-
-    function setupDataChannel() {
-        dataChannel.onopen = () => updateStatus("CHAT CONNECTED!");
-        dataChannel.onmessage = e => appendChat("Friend", e.data);
-    }
-
-    function sendMessage() {
-        const msg = document.getElementById('msgInput').value;
-        if (dataChannel && dataChannel.readyState === "open") {
-            dataChannel.send(msg);
-            appendChat("Me", msg);
-            document.getElementById('msgInput').value = "";
-        }
-    }
-
-    function appendChat(user, msg) {
-        const chat = document.getElementById('chat');
-        chat.innerHTML += `<br><b>${user}:</b> ${msg}`;
-        chat.scrollTop = chat.scrollHeight;
-    }
-
-    async function shareScreen() {
-        updateStatus("Requesting Screen...");
-        try {
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            const videoTrack = screenStream.getVideoTracks()[0];
-            
-            // Replace the "empty" video with the screen track
-            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-            if (sender) {
-                sender.replaceTrack(videoTrack);
-            } else {
-                // If we didn't have a video track, add it now
-                peerConnection.addTrack(videoTrack, screenStream);
-                // Note: Adding a track after connection requires a "re-negotiation"
-                // For simplicity, it's best to start screen share before clicking Generate.
-            }
-            document.getElementById('localVideo').srcObject = screenStream;
-            updateStatus("Screen sharing active.");
-        } catch (e) {
-            updateStatus("Screen share failed: " + e.message);
-        }
-    }
+// ── Boot ──────────────────────────────────────────────────────────
+initPeer();
 </script>
 </body>
 </html>
