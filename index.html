@@ -453,6 +453,21 @@
     transition: width 0.1s;
     border-radius: 3px;
   }
+
+  /* Fullscreen */
+  .video-wrapper:fullscreen,
+  .video-wrapper:-webkit-full-screen {
+    background: black;
+    border: none;
+    border-radius: 0;
+  }
+  .video-wrapper:fullscreen video,
+  .video-wrapper:-webkit-full-screen video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .video-wrapper { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -536,9 +551,11 @@
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────
+<script>
+// ── State ───────────────────────────────────────────────────────────
 let peer, currentCall, dataConn;
-let localStream, screenStream;
+let localStream, screenStream, mixedStream;
+let audioCtx, mixerDest;
 let isMuted = false;
 let isScreenSharing = false;
 let isNegotiating = false;
@@ -549,7 +566,7 @@ function genId() {
   return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
 }
 
-// ── Initialize PeerJS ──────────────────────────────────────────────
+// ── Initialize PeerJS ───────────────────────────────────────────────
 function initPeer() {
   const myId = genId();
   document.getElementById('myIdDisplay').textContent = myId;
@@ -560,7 +577,13 @@ function initPeer() {
     port: 443,
     secure: true,
     path: '/',
-    debug: 0
+    debug: 0,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    }
   });
 
   peer.on('open', id => {
@@ -591,22 +614,32 @@ function initPeer() {
   });
 }
 
-// ── Audio init ─────────────────────────────────────────────────────
+// ── Audio init (high quality) ────────────────────────────────────────
 async function initAudio() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 48000,
+        sampleSize: 16,
+        channelCount: 1,
+        latency: 0
+      }
+    });
     document.getElementById('localVideo').srcObject = localStream;
-    sysMsg('🎙️ Microphone active');
+    sysMsg('🎙️ Microphone active (HD audio)');
     setupVolumeIndicator();
   } catch(e) {
     sysMsg('⚠️ Mic error: ' + e.message);
     setStatus('error', '● mic error');
-    // Create empty stream so calls can still proceed (screen share only)
     localStream = new MediaStream();
   }
 }
 
-// ── Volume indicator ───────────────────────────────────────────────
+// ── Volume indicator ─────────────────────────────────────────────────
 function setupVolumeIndicator() {
   try {
     const ac = new AudioContext();
@@ -625,7 +658,36 @@ function setupVolumeIndicator() {
   } catch(e) {}
 }
 
-// ── Call ────────────────────────────────────────────────────────────
+// ── Apply Opus high-quality codec settings ───────────────────────────
+function applyAudioQuality(pc) {
+  try {
+    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+    if (!sender) return;
+    const params = sender.getParameters();
+    if (!params.encodings) params.encodings = [{}];
+    params.encodings[0].maxBitrate = 128000; // 128 kbps
+    params.encodings[0].priority = 'high';
+    // Request Opus stereo + FEC via SDP codec preferences if available
+    if (sender.setParameters) sender.setParameters(params).catch(() => {});
+  } catch(e) {}
+}
+
+// ── Apply high-bitrate video encoding for screen share ───────────────
+function applyScreenQuality(pc) {
+  try {
+    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+    if (!sender) return;
+    const params = sender.getParameters();
+    if (!params.encodings) params.encodings = [{}];
+    params.encodings[0].maxBitrate = 8000000;   // 8 Mbps for crisp screen share
+    params.encodings[0].maxFramerate = 30;
+    params.encodings[0].priority = 'high';
+    params.encodings[0].networkPriority = 'high';
+    sender.setParameters(params).catch(() => {});
+  } catch(e) { console.warn('Could not set video params:', e); }
+}
+
+// ── Call ─────────────────────────────────────────────────────────────
 function callFriend() {
   const friendId = document.getElementById('friendId').value.trim().toUpperCase();
   if (!friendId || friendId.length < 4) return sysMsg('⚠️ Enter your friend\'s Room ID first');
@@ -638,7 +700,7 @@ function callFriend() {
   handleCallStream(currentCall);
   showHangUp();
 
-  // Data channel for chat
+  // Data channel for chat + signaling
   dataConn = peer.connect(friendId);
   setupDataConn(dataConn);
 }
@@ -648,17 +710,17 @@ function handleCallStream(call) {
     setRemoteStream(remoteStream);
     setStatus('connected', '● connected');
     sysMsg('✅ Connected!');
+    // Apply audio quality settings after connection
+    setTimeout(() => applyAudioQuality(call.peerConnection), 500);
   });
 
-  // Also listen directly on the RTCPeerConnection for new tracks (screen share renegotiation)
+  // Catch new tracks from renegotiation (screen share)
   call.peerConnection.ontrack = e => {
     if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]);
   };
 
-  // Handle incoming renegotiation offers/answers sent via data channel
+  // Renegotiation (triggered when we add/remove tracks)
   call.peerConnection.onnegotiationneeded = async () => {
-    // Only the side that added the track should send the offer
-    // We flag this with isNegotiating to avoid loops
     if (!isNegotiating) return;
     try {
       const offer = await call.peerConnection.createOffer();
@@ -680,20 +742,18 @@ function handleCallStream(call) {
 
 function setRemoteStream(stream) {
   const vid = document.getElementById('remoteVideo');
-  // If already has this stream, skip
   if (vid.srcObject === stream) return;
   vid.srcObject = stream;
   document.getElementById('remotePlaceholder').style.display = 'none';
 }
 
-// Send a signaling message to peer via data channel (JSON with __signal flag)
+// ── Signaling via data channel ────────────────────────────────────────
 function sendSignal(payload) {
   if (dataConn && dataConn.open) {
     dataConn.send(JSON.stringify({ __signal: true, ...payload }));
   }
 }
 
-// Handle incoming signal from peer
 async function handleSignal(payload) {
   if (!currentCall) return;
   const pc = currentCall.peerConnection;
@@ -703,13 +763,14 @@ async function handleSignal(payload) {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendSignal({ type: 'renego-answer', sdp: pc.localDescription });
+      // Apply quality after renegotiation settles
+      setTimeout(() => { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
     } else if (payload.type === 'renego-answer') {
       await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      setTimeout(() => { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
     } else if (payload.type === 'screen-stopped') {
-      // Friend stopped their screen share — clear the video
       sysMsg('🖥️ Friend stopped screen share');
       const vid = document.getElementById('remoteVideo');
-      // Remove video tracks from remote stream
       if (vid.srcObject) {
         vid.srcObject.getVideoTracks().forEach(t => t.stop());
         const audioTracks = vid.srcObject.getAudioTracks();
@@ -722,7 +783,7 @@ async function handleSignal(payload) {
   } catch(e) { console.error('Signal handling error:', e); }
 }
 
-// ── Data / Chat ────────────────────────────────────────────────────
+// ── Data / Chat ───────────────────────────────────────────────────────
 function setupDataConn(conn) {
   conn.on('open', () => sysMsg('💬 Chat connected'));
   conn.on('data', raw => {
@@ -763,34 +824,52 @@ function sysMsg(text) {
   appendMsg('', text, 'system');
 }
 
-// ── Controls ───────────────────────────────────────────────────────
+// ── Controls ──────────────────────────────────────────────────────────
 function toggleMute() {
   if (!localStream) return;
   isMuted = !isMuted;
   localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+  // Also mute the mic node in the audio mixer if active
+  if (mixedStream) {
+    mixedStream._micGain && (mixedStream._micGain.gain.value = isMuted ? 0 : 1);
+  }
   const btn = document.getElementById('muteBtn');
   btn.textContent = isMuted ? '🔇 Unmute' : '🎙️ Mute';
   btn.classList.toggle('muted', isMuted);
 }
 
+// ── Screen Share with mixed audio ─────────────────────────────────────
 async function toggleScreen() {
   if (isScreenSharing) {
     isNegotiating = true;
+
+    // Stop all screen tracks
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+    // Close audio context
+    if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; mixerDest = null; }
     screenStream = null;
+    mixedStream = null;
     isScreenSharing = false;
+
     document.getElementById('localVideo').srcObject = localStream;
     document.getElementById('localPlaceholder').style.display = 'flex';
     document.getElementById('screenBtn').textContent = '🖥️ Screen';
     document.getElementById('screenBtn').classList.remove('active');
 
-    // Remove video senders from the peer connection
     if (currentCall) {
       const pc = currentCall.peerConnection;
+      // Remove video senders
       pc.getSenders()
         .filter(s => s.track && s.track.kind === 'video')
         .forEach(s => pc.removeTrack(s));
-      // Manually renegotiate after removing tracks (onnegotiationneeded may not fire for removes)
+      // Remove the mixed audio sender, restore original mic sender
+      // Find extra audio senders (more than 1 means we added mixed audio)
+      const audioSenders = pc.getSenders().filter(s => s.track && s.track.kind === 'audio');
+      // Keep only the first, remove extras
+      audioSenders.slice(1).forEach(s => pc.removeTrack(s));
+      // Restore mic track on first audio sender
+      if (audioSenders[0]) audioSenders[0].replaceTrack(localStream.getAudioTracks()[0]).catch(()=>{});
+
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -804,38 +883,116 @@ async function toggleScreen() {
   }
 
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    const videoTrack = screenStream.getVideoTracks()[0];
+    // Request highest quality screen capture
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        width: { ideal: 3840, max: 3840 },
+        height: { ideal: 2160, max: 2160 },
+        frameRate: { ideal: 30, max: 60 },
+        cursor: 'always'
+      },
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        sampleRate: 48000
+      }
+    });
 
+    const videoTrack = screenStream.getVideoTracks()[0];
+    // Apply best quality constraints to the video track
+    if (videoTrack.applyConstraints) {
+      videoTrack.applyConstraints({
+        width: { ideal: 3840 },
+        height: { ideal: 2160 },
+        frameRate: { ideal: 30 }
+      }).catch(() => {});
+    }
+
+    // ── Mix mic + system audio ──────────────────────────────────────
+    audioCtx = new AudioContext({ sampleRate: 48000 });
+    mixerDest = audioCtx.createMediaStreamDestination();
+
+    // Mic source
+    const micSource = audioCtx.createMediaStreamSource(localStream);
+    const micGain = audioCtx.createGain();
+    micGain.gain.value = isMuted ? 0 : 1;
+    micSource.connect(micGain);
+    micGain.connect(mixerDest);
+
+    // System/tab audio source (if the browser captured it)
+    const sysAudioTracks = screenStream.getAudioTracks();
+    if (sysAudioTracks.length > 0) {
+      const sysSource = audioCtx.createMediaStreamSource(new MediaStream(sysAudioTracks));
+      const sysGain = audioCtx.createGain();
+      sysGain.gain.value = 1;
+      sysSource.connect(sysGain);
+      sysGain.connect(mixerDest);
+      sysMsg('🔊 System audio captured — friend will hear screen audio too');
+    } else {
+      sysMsg('ℹ️ No system audio captured (make sure to check "Share audio" in the dialog)');
+    }
+
+    // The mixed audio track that goes to the peer
+    const mixedAudioTrack = mixerDest.stream.getAudioTracks()[0];
+    // Expose mic gain node for mute toggle
+    mixerDest.stream._micGain = micGain;
+
+    // Update local video preview
     document.getElementById('localVideo').srcObject = screenStream;
     document.getElementById('localPlaceholder').style.display = 'none';
     isScreenSharing = true;
     document.getElementById('screenBtn').textContent = '⏹ Stop';
     document.getElementById('screenBtn').classList.add('active');
+    sysMsg('🖥️ Screen share started — friend can see your screen');
 
     if (currentCall) {
       isNegotiating = true;
       const pc = currentCall.peerConnection;
-      // Always add as a new track — replaceTrack won't trigger renegotiation
+
+      // Replace the existing mic audio sender with the mixed audio track
+      const audioSender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+      if (audioSender) {
+        await audioSender.replaceTrack(mixedAudioTrack);
+      } else {
+        pc.addTrack(mixedAudioTrack, mixerDest.stream);
+      }
+
+      // Add the video track (triggers onnegotiationneeded)
       pc.addTrack(videoTrack, screenStream);
-      // onnegotiationneeded will fire and send the offer
+      // onnegotiationneeded fires → sends offer → friend gets video + mixed audio
     }
 
     videoTrack.onended = () => { if (isScreenSharing) toggleScreen(); };
+
   } catch(e) {
     sysMsg('⚠️ Screen share failed: ' + e.message);
+    if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
   }
 }
 
 function hangUp() {
   if (currentCall) { currentCall.close(); currentCall = null; }
   if (dataConn) { dataConn.close(); dataConn = null; }
+  if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
   document.getElementById('hangBtn').style.display = 'none';
   setStatus('ready', '● ready');
   sysMsg('📵 You hung up');
 }
 
-// ── Helpers ────────────────────────────────────────────────────────
+// ── Fullscreen on double-click ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  ['localVideo','remoteVideo'].forEach(id => {
+    document.getElementById(id).addEventListener('dblclick', function() {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        this.closest('.video-wrapper').requestFullscreen().catch(() => this.requestFullscreen().catch(()=>{}));
+      }
+    });
+  });
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────
 function copyRoomId() {
   const id = document.getElementById('myIdDisplay').textContent;
   if (id === '——') return;
@@ -861,7 +1018,7 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Boot ──────────────────────────────────────────────────────────
+// ── Boot ──────────────────────────────────────────────────────────────
 initPeer();
 </script>
 </body>
