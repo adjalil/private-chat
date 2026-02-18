@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Private 2-Person Link</title>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        video { width: 45%; border: 2px solid #5865f2; border-radius: 8px; margin: 10px; background: black; }
+        textarea { width: 90%; height: 100px; background: #2f3136; color: #dcddde; border: none; padding: 10px; margin: 10px 0; }
+        button { padding: 10px 20px; background: #5865f2; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .chat-box { width: 90%; height: 150px; overflow-y: scroll; background: #2f3136; padding: 10px; margin-top: 20px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h2>Private P2P Voice, Video & Screen</h2>
+    
+    <div style="display:flex; justify-content:center; width: 100%;">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+
+    <div>
+        <button onclick="startCall()">1. Generate My Link</button>
+        <button onclick="answerCall()">2. Paste Friend's Link & Connect</button>
+        <button onclick="shareScreen()">Share Screen</button>
+    </div>
+
+    <p>Step 1: Copy this and send to friend:</p>
+    <textarea id="offerText" readonly placeholder="Click 'Generate' to see your link..."></textarea>
+    
+    <p>Step 2: Paste friend's link here:</p>
+    <textarea id="answerText" placeholder="Paste your friend's code here..."></textarea>
+
+    <div class="chat-box" id="chat"><b>System:</b> Waiting for connection...</div>
+    <input type="text" id="msgInput" placeholder="Type a message..." style="width:80%; padding:10px; margin-top:10px;">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        let localStream;
+        let peerConnection;
+        let dataChannel;
+        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        async function init() {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('localVideo').srcObject = localStream;
+        }
+
+        async function startCall() {
+            await init();
+            peerConnection = new RTCPeerConnection(config);
+            
+            // Add media tracks
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            // Setup Data Channel for Text Chat
+            dataChannel = peerConnection.createDataChannel("chat");
+            setupDataChannel();
+
+            peerConnection.onicecandidate = e => {
+                if (!e.candidate) document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
+            };
+
+            peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        }
+
+        async function answerCall() {
+            const remoteData = JSON.parse(document.getElementById('answerText').value);
+            
+            if (!peerConnection) { // This is the person receiving the call
+                await init();
+                peerConnection = new RTCPeerConnection(config);
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                peerConnection.onicecandidate = e => {
+                    if (!e.candidate) document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
+                };
+                peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
+                peerConnection.ondatachannel = e => { dataChannel = e.channel; setupDataChannel(); };
+                
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+            } else { // This is the person who started the call finishing the handshake
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
+            }
+        }
+
+        function setupDataChannel() {
+            dataChannel.onopen = () => appendChat("System", "Connected!");
+            dataChannel.onmessage = e => appendChat("Friend", e.data);
+        }
+
+        function sendMessage() {
+            const msg = document.getElementById('msgInput').value;
+            dataChannel.send(msg);
+            appendChat("Me", msg);
+            document.getElementById('msgInput').value = "";
+        }
+
+        function appendChat(user, msg) {
+            document.getElementById('chat').innerHTML += `<br><b>${user}:</b> ${msg}`;
+        }
+
+        async function shareScreen() {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const videoTrack = screenStream.getVideoTracks()[0];
+            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+            sender.replaceTrack(videoTrack);
+            document.getElementById('localVideo').srcObject = screenStream;
+        }
+    </script>
+</body>
+</html>
