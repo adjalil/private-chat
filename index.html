@@ -541,6 +541,7 @@ let peer, currentCall, dataConn;
 let localStream, screenStream;
 let isMuted = false;
 let isScreenSharing = false;
+let isNegotiating = false;
 
 // ── Generate random 6-char room ID ──────────────────────────────────
 function genId() {
@@ -644,12 +645,27 @@ function callFriend() {
 
 function handleCallStream(call) {
   call.on('stream', remoteStream => {
-    const vid = document.getElementById('remoteVideo');
-    vid.srcObject = remoteStream;
-    document.getElementById('remotePlaceholder').style.display = 'none';
+    setRemoteStream(remoteStream);
     setStatus('connected', '● connected');
     sysMsg('✅ Connected!');
   });
+
+  // Also listen directly on the RTCPeerConnection for new tracks (screen share renegotiation)
+  call.peerConnection.ontrack = e => {
+    if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]);
+  };
+
+  // Handle incoming renegotiation offers/answers sent via data channel
+  call.peerConnection.onnegotiationneeded = async () => {
+    // Only the side that added the track should send the offer
+    // We flag this with isNegotiating to avoid loops
+    if (!isNegotiating) return;
+    try {
+      const offer = await call.peerConnection.createOffer();
+      await call.peerConnection.setLocalDescription(offer);
+      sendSignal({ type: 'renego-offer', sdp: call.peerConnection.localDescription });
+    } catch(e) { console.error('Renegotiation error:', e); }
+  };
 
   call.on('close', () => {
     setStatus('ready', '● ready');
@@ -662,10 +678,60 @@ function handleCallStream(call) {
   call.on('error', e => sysMsg('⚠️ Call error: ' + e));
 }
 
+function setRemoteStream(stream) {
+  const vid = document.getElementById('remoteVideo');
+  // If already has this stream, skip
+  if (vid.srcObject === stream) return;
+  vid.srcObject = stream;
+  document.getElementById('remotePlaceholder').style.display = 'none';
+}
+
+// Send a signaling message to peer via data channel (JSON with __signal flag)
+function sendSignal(payload) {
+  if (dataConn && dataConn.open) {
+    dataConn.send(JSON.stringify({ __signal: true, ...payload }));
+  }
+}
+
+// Handle incoming signal from peer
+async function handleSignal(payload) {
+  if (!currentCall) return;
+  const pc = currentCall.peerConnection;
+  try {
+    if (payload.type === 'renego-offer') {
+      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendSignal({ type: 'renego-answer', sdp: pc.localDescription });
+    } else if (payload.type === 'renego-answer') {
+      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+    } else if (payload.type === 'screen-stopped') {
+      // Friend stopped their screen share — clear the video
+      sysMsg('🖥️ Friend stopped screen share');
+      const vid = document.getElementById('remoteVideo');
+      // Remove video tracks from remote stream
+      if (vid.srcObject) {
+        vid.srcObject.getVideoTracks().forEach(t => t.stop());
+        const audioTracks = vid.srcObject.getAudioTracks();
+        if (audioTracks.length === 0) {
+          vid.srcObject = null;
+          document.getElementById('remotePlaceholder').style.display = 'flex';
+        }
+      }
+    }
+  } catch(e) { console.error('Signal handling error:', e); }
+}
+
 // ── Data / Chat ────────────────────────────────────────────────────
 function setupDataConn(conn) {
   conn.on('open', () => sysMsg('💬 Chat connected'));
-  conn.on('data', data => appendMsg('Friend', data, 'them'));
+  conn.on('data', raw => {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.__signal) { handleSignal(parsed); return; }
+    } catch(e) {}
+    appendMsg('Friend', raw, 'them');
+  });
   conn.on('close', () => sysMsg('💬 Chat disconnected'));
   conn.on('error', e => console.error(e));
 }
@@ -709,7 +775,7 @@ function toggleMute() {
 
 async function toggleScreen() {
   if (isScreenSharing) {
-    // Stop screen share, revert to audio
+    isNegotiating = true;
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
     screenStream = null;
     isScreenSharing = false;
@@ -718,16 +784,27 @@ async function toggleScreen() {
     document.getElementById('screenBtn').textContent = '🖥️ Screen';
     document.getElementById('screenBtn').classList.remove('active');
 
-    // Replace track back (no video to revert to, remove video senders)
+    // Remove video senders from the peer connection
     if (currentCall) {
-      const sender = currentCall.peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender) currentCall.peerConnection.removeTrack(sender);
+      const pc = currentCall.peerConnection;
+      pc.getSenders()
+        .filter(s => s.track && s.track.kind === 'video')
+        .forEach(s => pc.removeTrack(s));
+      // Manually renegotiate after removing tracks (onnegotiationneeded may not fire for removes)
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendSignal({ type: 'renego-offer', sdp: pc.localDescription });
+      } catch(e) { console.error(e); }
     }
+
+    sendSignal({ type: 'screen-stopped' });
+    isNegotiating = false;
     return;
   }
 
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     const videoTrack = screenStream.getVideoTracks()[0];
 
     document.getElementById('localVideo').srcObject = screenStream;
@@ -737,16 +814,14 @@ async function toggleScreen() {
     document.getElementById('screenBtn').classList.add('active');
 
     if (currentCall) {
+      isNegotiating = true;
       const pc = currentCall.peerConnection;
-      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender) {
-        sender.replaceTrack(videoTrack);
-      } else {
-        pc.addTrack(videoTrack, screenStream);
-      }
+      // Always add as a new track — replaceTrack won't trigger renegotiation
+      pc.addTrack(videoTrack, screenStream);
+      // onnegotiationneeded will fire and send the offer
     }
 
-    videoTrack.onended = () => toggleScreen();
+    videoTrack.onended = () => { if (isScreenSharing) toggleScreen(); };
   } catch(e) {
     sysMsg('⚠️ Screen share failed: ' + e.message);
   }
