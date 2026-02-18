@@ -14,7 +14,6 @@
     --surface2: #1e1e24;
     --border: #2a2a35;
     --accent: #7c6aff;
-    --accent2: #ff6a9a;
     --green: #4ade80;
     --red: #f87171;
     --text: #e8e8f0;
@@ -33,12 +32,11 @@
     overflow: hidden;
   }
 
-  /* Subtle grid background */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: 
+    background-image:
       linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
       linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
     background-size: 40px 40px;
@@ -46,7 +44,6 @@
     z-index: 0;
   }
 
-  /* ── Header ── */
   header {
     display: flex;
     align-items: center;
@@ -59,12 +56,7 @@
     z-index: 10;
   }
 
-  .logo {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    font-size: 1.1rem;
-    letter-spacing: -0.5px;
-  }
+  .logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.5px; }
   .logo span { color: var(--accent); }
 
   .status-pill {
@@ -76,22 +68,13 @@
     color: var(--muted);
     transition: all 0.3s;
   }
-  .status-pill.connected { border-color: var(--green); color: var(--green); background: rgba(74,222,128,0.08); }
+  .status-pill.connected  { border-color: var(--green); color: var(--green); background: rgba(74,222,128,0.08); }
   .status-pill.connecting { border-color: var(--accent); color: var(--accent); animation: pulse 1.5s infinite; }
-  .status-pill.error { border-color: var(--red); color: var(--red); }
+  .status-pill.error      { border-color: var(--red); color: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }
 
-  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+  .main { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 1; }
 
-  /* ── Main layout ── */
-  .main {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* ── Setup Panel ── */
   .setup-panel {
     width: 360px;
     min-width: 320px;
@@ -143,7 +126,7 @@
     transition: all 0.2s;
     white-space: nowrap;
   }
-  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn:hover  { border-color: var(--accent); color: var(--accent); }
   .copy-btn.copied { border-color: var(--green); color: var(--green); }
 
   .divider {
@@ -154,18 +137,9 @@
     font-size: 0.75rem;
     font-family: 'JetBrains Mono', monospace;
   }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-  .join-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  .join-group { display: flex; flex-direction: column; gap: 8px; }
 
   input[type="text"] {
     background: var(--surface2);
@@ -195,44 +169,10 @@
     transition: all 0.2s;
   }
 
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-  }
+  .btn-primary { background: var(--accent); color: white; }
   .btn-primary:hover { background: #6a58e8; transform: translateY(-1px); }
-  .btn-primary:active { transform: translateY(0); }
 
-  .btn-secondary {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-
-  .btn-danger {
-    background: rgba(248,113,113,0.1);
-    color: var(--red);
-    border: 1px solid rgba(248,113,113,0.3);
-  }
-  .btn-danger:hover { background: rgba(248,113,113,0.2); }
-
-  .btn-icon {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 1rem;
-  }
-
-  /* Controls */
-  .controls {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
 
   .control-btn {
     flex: 1;
@@ -251,17 +191,13 @@
     transition: all 0.2s;
     font-family: 'DM Sans', sans-serif;
   }
-  .control-btn:hover { border-color: var(--accent); }
-  .control-btn.active { background: rgba(124,106,255,0.15); border-color: var(--accent); color: var(--accent); }
-  .control-btn.muted { background: rgba(248,113,113,0.1); border-color: var(--red); color: var(--red); }
+  .control-btn:hover      { border-color: var(--accent); }
+  .control-btn.active     { background: rgba(124,106,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .control-btn.muted      { background: rgba(248,113,113,0.1); border-color: var(--red); color: var(--red); }
+  .control-btn.btn-danger { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .control-btn.btn-danger:hover { background: rgba(248,113,113,0.2); }
 
-  /* ── Video area ── */
-  .video-chat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  .video-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
   .videos {
     display: flex;
@@ -272,15 +208,6 @@
     background: #0a0a0c;
   }
 
-  video {
-    flex: 1;
-    border-radius: 12px;
-    background: #111;
-    object-fit: cover;
-    border: 1px solid var(--border);
-    position: relative;
-  }
-
   .video-wrapper {
     flex: 1;
     position: relative;
@@ -288,9 +215,10 @@
     overflow: hidden;
     border: 1px solid var(--border);
     background: #111;
+    cursor: pointer;
   }
 
-  .video-wrapper video { width: 100%; height: 100%; border: none; border-radius: 0; }
+  .video-wrapper video { width: 100%; height: 100%; border: none; border-radius: 0; object-fit: contain; }
 
   .video-label {
     position: absolute;
@@ -304,6 +232,19 @@
     border-radius: 4px;
   }
 
+  .fs-hint {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.3);
+    font-family: 'JetBrains Mono', monospace;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .video-wrapper:hover .fs-hint { opacity: 1; }
+
   .video-placeholder {
     position: absolute;
     inset: 0;
@@ -316,169 +257,78 @@
   }
 
   .avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: var(--surface2);
-    border: 2px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--surface2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
   }
 
-  /* ── Chat ── */
-  .chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-top: 1px solid var(--border);
-  }
+  .video-wrapper:fullscreen,
+  .video-wrapper:-webkit-full-screen { background: black; border: none; border-radius: 0; }
+  .video-wrapper:fullscreen video,
+  .video-wrapper:-webkit-full-screen video { width: 100%; height: 100%; object-fit: contain; }
 
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); }
 
-  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-messages::-webkit-scrollbar       { width: 4px; }
   .chat-messages::-webkit-scrollbar-track { background: transparent; }
   .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-  .msg {
-    display: flex;
-    flex-direction: column;
-    max-width: 75%;
-    animation: msgIn 0.2s ease;
-  }
-  @keyframes msgIn { from { opacity:0; transform: translateY(4px) } }
-
-  .msg.me { align-self: flex-end; align-items: flex-end; }
-  .msg.them { align-self: flex-start; }
+  .msg { display: flex; flex-direction: column; max-width: 75%; animation: msgIn 0.2s ease; }
+  @keyframes msgIn { from{opacity:0;transform:translateY(4px)} }
+  .msg.me     { align-self: flex-end; align-items: flex-end; }
+  .msg.them   { align-self: flex-start; }
   .msg.system { align-self: center; align-items: center; }
 
-  .msg-bubble {
-    padding: 8px 14px;
-    border-radius: 16px;
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
-  .msg.me .msg-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+  .msg-bubble { padding: 8px 14px; border-radius: 16px; font-size: 0.9rem; line-height: 1.4; }
+  .msg.me   .msg-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
   .msg.them .msg-bubble { background: var(--surface2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
   .msg.system .msg-bubble {
-    background: transparent;
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 4px 12px;
+    background: transparent; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px;
   }
 
-  .msg-name {
-    font-size: 0.7rem;
-    color: var(--muted);
-    margin-bottom: 3px;
-    font-family: 'JetBrains Mono', monospace;
-  }
+  .msg-name { font-size: 0.7rem; color: var(--muted); margin-bottom: 3px; font-family: 'JetBrains Mono', monospace; }
 
   .chat-input-row {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid var(--border);
-    background: var(--surface);
+    display: flex; gap: 8px; padding: 12px 16px;
+    border-top: 1px solid var(--border); background: var(--surface);
   }
 
   .chat-input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 10px 18px;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.9rem;
-    outline: none;
-    letter-spacing: normal;
-    text-transform: none;
-    transition: border-color 0.2s;
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 24px; padding: 10px 18px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none;
+    letter-spacing: normal; text-transform: none; transition: border-color 0.2s;
   }
   .chat-input:focus { border-color: var(--accent); }
 
   .send-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
+    width: 40px; height: 40px; border-radius: 50%; background: var(--accent);
+    color: white; border: none; cursor: pointer; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;
   }
   .send-btn:hover { background: #6a58e8; transform: scale(1.05); }
 
   .info-box {
-    background: rgba(124,106,255,0.06);
-    border: 1px solid rgba(124,106,255,0.2);
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-size: 0.8rem;
-    color: var(--muted);
-    line-height: 1.6;
+    background: rgba(124,106,255,0.06); border: 1px solid rgba(124,106,255,0.2);
+    border-radius: 8px; padding: 12px 14px; font-size: 0.8rem; color: var(--muted); line-height: 1.6;
   }
   .info-box strong { color: var(--text); }
 
-  /* Volume indicator */
-  .vol-bar {
-    height: 3px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 4px;
-  }
-  .vol-fill {
-    height: 100%;
-    background: var(--green);
-    width: 0%;
-    transition: width 0.1s;
-    border-radius: 3px;
-  }
-
-  /* Fullscreen */
-  .video-wrapper:fullscreen,
-  .video-wrapper:-webkit-full-screen {
-    background: black;
-    border: none;
-    border-radius: 0;
-  }
-  .video-wrapper:fullscreen video,
-  .video-wrapper:-webkit-full-screen video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-  .video-wrapper { cursor: pointer; }
+  .vol-bar  { height: 3px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .vol-fill { height: 100%; background: var(--green); width: 0%; transition: width 0.1s; border-radius: 3px; }
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">Private<span>Link</span></div>
-  <div class="status-pill" id="statusPill">● initializing</div>
+  <div class="status-pill" id="statusPill">&#9679; initializing</div>
 </header>
 
 <div class="main">
-  <!-- Setup Panel -->
   <div class="setup-panel">
 
     <div>
@@ -494,16 +344,16 @@
 
     <div class="join-group">
       <div class="section-label">Friend's Room ID</div>
-      <input type="text" id="friendId" maxlength="8" placeholder="Paste their ID...">
-      <button class="btn-primary" onclick="callFriend()">📞 Call Friend</button>
+      <input type="text" id="friendId" maxlength="6" placeholder="Paste their ID...">
+      <button class="btn-primary" onclick="callFriend()">&#128222; Call Friend</button>
     </div>
 
     <div>
       <div class="section-label">Controls</div>
       <div class="controls">
-        <button class="control-btn" id="muteBtn" onclick="toggleMute()">🎙️ Mute</button>
-        <button class="control-btn" id="screenBtn" onclick="toggleScreen()">🖥️ Screen</button>
-        <button class="control-btn btn-danger" id="hangBtn" onclick="hangUp()" style="display:none">📵 Hang Up</button>
+        <button class="control-btn" id="muteBtn" onclick="toggleMute()">&#127897; Mute</button>
+        <button class="control-btn" id="screenBtn" onclick="toggleScreen()">&#128421; Screen</button>
+        <button class="control-btn btn-danger" id="hangBtn" onclick="hangUp()" style="display:none">&#128245; Hang Up</button>
       </div>
     </div>
 
@@ -512,65 +362,68 @@
       1. Share your <strong>Room ID</strong> with a friend<br>
       2. They paste it and click <strong>Call</strong><br>
       3. Audio streams directly P2P — no servers store your call<br><br>
-      <strong>Screen share:</strong> click Screen during a call
+      <strong>Screen + audio:</strong> check "Share audio" in the browser dialog to let your friend hear tab/system audio.<br><br>
+      <strong>Double-click</strong> any video to go fullscreen.
     </div>
 
   </div>
 
-  <!-- Video + Chat -->
   <div class="video-chat">
     <div class="videos">
       <div class="video-wrapper" id="localWrapper">
         <video id="localVideo" autoplay muted playsinline></video>
         <div class="video-placeholder" id="localPlaceholder">
-          <div class="avatar">🎙️</div>
+          <div class="avatar">&#127897;</div>
           <span style="font-size:0.75rem;color:var(--muted)">You (audio only)</span>
         </div>
         <div class="video-label">You</div>
+        <div class="fs-hint">dblclick fullscreen</div>
       </div>
       <div class="video-wrapper" id="remoteWrapper">
         <video id="remoteVideo" autoplay playsinline></video>
         <div class="video-placeholder" id="remotePlaceholder">
-          <div class="avatar">👤</div>
-          <span style="font-size:0.75rem;color:var(--muted)">Waiting for friend…</span>
+          <div class="avatar">&#128100;</div>
+          <span style="font-size:0.75rem;color:var(--muted)">Waiting for friend...</span>
         </div>
         <div class="video-label">Friend</div>
+        <div class="fs-hint">dblclick fullscreen</div>
       </div>
     </div>
 
     <div class="chat-area">
       <div class="chat-messages" id="chatMessages">
-        <div class="msg system"><div class="msg-bubble">End-to-end encrypted · Private P2P</div></div>
+        <div class="msg system"><div class="msg-bubble">End-to-end encrypted &middot; Private P2P</div></div>
       </div>
       <div class="chat-input-row">
-        <input class="chat-input" type="text" id="chatInput" placeholder="Message…" onkeydown="if(event.key==='Enter')sendMsg()">
-        <button class="send-btn" onclick="sendMsg()">➤</button>
+        <input class="chat-input" type="text" id="chatInput" placeholder="Message..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send-btn" onclick="sendMsg()">&#10148;</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-<script>
-// ── State ───────────────────────────────────────────────────────────
-let peer, currentCall, dataConn;
-let localStream, screenStream, mixedStream;
-let audioCtx, mixerDest;
-let isMuted = false;
-let isScreenSharing = false;
-let isNegotiating = false;
+// ── State ────────────────────────────────────────────────────────────
+var peer, currentCall, dataConn;
+var localStream, screenStream;
+var audioCtx, mixerDest, micGainNode;
+var isMuted = false;
+var isScreenSharing = false;
+var isNegotiating = false;
 
-// ── Generate random 6-char room ID ──────────────────────────────────
+// ── Random 6-char Room ID ────────────────────────────────────────────
 function genId() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var id = '';
+  for (var i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
 }
 
-// ── Initialize PeerJS ───────────────────────────────────────────────
+// ── PeerJS init ──────────────────────────────────────────────────────
 function initPeer() {
-  const myId = genId();
+  var myId = genId();
   document.getElementById('myIdDisplay').textContent = myId;
-  setStatus('connecting', 'connecting…');
+  setStatus('connecting', 'connecting...');
 
   peer = new Peer(myId, {
     host: '0.peerjs.com',
@@ -586,426 +439,422 @@ function initPeer() {
     }
   });
 
-  peer.on('open', id => {
-    setStatus('ready', '● ready');
+  peer.on('open', function(id) {
+    setStatus('ready', 'ready');
     sysMsg('Your Room ID: ' + id + ' — share it!');
     initAudio();
   });
 
-  peer.on('error', e => {
-    setStatus('error', '● error');
+  peer.on('error', function(e) {
+    setStatus('error', 'error');
     sysMsg('Connection error: ' + e.type + '. Try refreshing.');
     console.error(e);
   });
 
-  // Incoming call
-  peer.on('call', call => {
-    sysMsg('Incoming call… answering…');
+  peer.on('call', function(call) {
+    sysMsg('Incoming call... answering...');
     currentCall = call;
     call.answer(localStream);
     handleCallStream(call);
     showHangUp();
   });
 
-  // Incoming data connection
-  peer.on('connection', conn => {
+  peer.on('connection', function(conn) {
     dataConn = conn;
     setupDataConn(conn);
   });
 }
 
-// ── Audio init (high quality) ────────────────────────────────────────
-async function initAudio() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: false,
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        sampleRate: 48000,
-        sampleSize: 16,
-        channelCount: 1,
-        latency: 0
-      }
-    });
-    document.getElementById('localVideo').srcObject = localStream;
-    sysMsg('🎙️ Microphone active (HD audio)');
+// ── High-quality mic audio ───────────────────────────────────────────
+function initAudio() {
+  navigator.mediaDevices.getUserMedia({
+    video: false,
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      sampleRate: 48000,
+      sampleSize: 16,
+      channelCount: 1
+    }
+  }).then(function(stream) {
+    localStream = stream;
+    document.getElementById('localVideo').srcObject = stream;
+    sysMsg('Microphone active (HD audio)');
     setupVolumeIndicator();
-  } catch(e) {
-    sysMsg('⚠️ Mic error: ' + e.message);
-    setStatus('error', '● mic error');
+  }).catch(function(e) {
+    sysMsg('Mic error: ' + e.message);
+    setStatus('error', 'mic error');
     localStream = new MediaStream();
-  }
+  });
 }
 
-// ── Volume indicator ─────────────────────────────────────────────────
+// ── Volume bar ───────────────────────────────────────────────────────
 function setupVolumeIndicator() {
   try {
-    const ac = new AudioContext();
-    const src = ac.createMediaStreamSource(localStream);
-    const analyser = ac.createAnalyser();
+    var ac = new AudioContext();
+    var src = ac.createMediaStreamSource(localStream);
+    var analyser = ac.createAnalyser();
     analyser.fftSize = 256;
     src.connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const fill = document.getElementById('volFill');
-    (function tick() {
+    var data = new Uint8Array(analyser.frequencyBinCount);
+    var fill = document.getElementById('volFill');
+    function tick() {
       analyser.getByteFrequencyData(data);
-      const avg = data.reduce((a,b) => a+b) / data.length;
+      var sum = 0;
+      for (var i = 0; i < data.length; i++) sum += data[i];
+      var avg = sum / data.length;
       fill.style.width = Math.min(avg * 2, 100) + '%';
       requestAnimationFrame(tick);
-    })();
+    }
+    tick();
   } catch(e) {}
 }
 
-// ── Apply Opus high-quality codec settings ───────────────────────────
+// ── Boost audio bitrate to 128 kbps ─────────────────────────────────
 function applyAudioQuality(pc) {
   try {
-    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
-    if (!sender) return;
-    const params = sender.getParameters();
-    if (!params.encodings) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 128000; // 128 kbps
-    params.encodings[0].priority = 'high';
-    // Request Opus stereo + FEC via SDP codec preferences if available
-    if (sender.setParameters) sender.setParameters(params).catch(() => {});
+    var senders = pc.getSenders();
+    for (var i = 0; i < senders.length; i++) {
+      if (senders[i].track && senders[i].track.kind === 'audio') {
+        var params = senders[i].getParameters();
+        if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 128000;
+        senders[i].setParameters(params).catch(function(){});
+        break;
+      }
+    }
   } catch(e) {}
 }
 
-// ── Apply high-bitrate video encoding for screen share ───────────────
+// ── Boost video bitrate for screen share ────────────────────────────
 function applyScreenQuality(pc) {
   try {
-    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-    if (!sender) return;
-    const params = sender.getParameters();
-    if (!params.encodings) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 8000000;   // 8 Mbps for crisp screen share
-    params.encodings[0].maxFramerate = 30;
-    params.encodings[0].priority = 'high';
-    params.encodings[0].networkPriority = 'high';
-    sender.setParameters(params).catch(() => {});
-  } catch(e) { console.warn('Could not set video params:', e); }
+    var senders = pc.getSenders();
+    for (var i = 0; i < senders.length; i++) {
+      if (senders[i].track && senders[i].track.kind === 'video') {
+        var params = senders[i].getParameters();
+        if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 8000000;
+        params.encodings[0].maxFramerate = 30;
+        senders[i].setParameters(params).catch(function(){});
+        break;
+      }
+    }
+  } catch(e) {}
 }
 
-// ── Call ─────────────────────────────────────────────────────────────
+// ── Make a call ──────────────────────────────────────────────────────
 function callFriend() {
-  const friendId = document.getElementById('friendId').value.trim().toUpperCase();
-  if (!friendId || friendId.length < 4) return sysMsg('⚠️ Enter your friend\'s Room ID first');
-  if (!localStream) return sysMsg('⚠️ Microphone not ready yet');
+  var friendId = document.getElementById('friendId').value.trim().toUpperCase();
+  if (!friendId || friendId.length < 4) { sysMsg('Enter your friend\'s Room ID first'); return; }
+  if (!localStream) { sysMsg('Microphone not ready yet'); return; }
 
-  sysMsg('📞 Calling ' + friendId + '…');
-  setStatus('connecting', '● calling…');
+  sysMsg('Calling ' + friendId + '...');
+  setStatus('connecting', 'calling...');
 
   currentCall = peer.call(friendId, localStream);
   handleCallStream(currentCall);
   showHangUp();
 
-  // Data channel for chat + signaling
   dataConn = peer.connect(friendId);
   setupDataConn(dataConn);
 }
 
 function handleCallStream(call) {
-  call.on('stream', remoteStream => {
+  call.on('stream', function(remoteStream) {
     setRemoteStream(remoteStream);
-    setStatus('connected', '● connected');
-    sysMsg('✅ Connected!');
-    // Apply audio quality settings after connection
-    setTimeout(() => applyAudioQuality(call.peerConnection), 500);
+    setStatus('connected', 'connected');
+    sysMsg('Connected!');
+    setTimeout(function() { applyAudioQuality(call.peerConnection); }, 500);
   });
 
-  // Catch new tracks from renegotiation (screen share)
-  call.peerConnection.ontrack = e => {
+  // Catch tracks added later (screen share renegotiation)
+  call.peerConnection.ontrack = function(e) {
     if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]);
   };
 
-  // Renegotiation (triggered when we add/remove tracks)
-  call.peerConnection.onnegotiationneeded = async () => {
+  // Renegotiation: fires when WE add/remove tracks
+  call.peerConnection.onnegotiationneeded = function() {
     if (!isNegotiating) return;
-    try {
-      const offer = await call.peerConnection.createOffer();
-      await call.peerConnection.setLocalDescription(offer);
+    call.peerConnection.createOffer().then(function(offer) {
+      return call.peerConnection.setLocalDescription(offer);
+    }).then(function() {
       sendSignal({ type: 'renego-offer', sdp: call.peerConnection.localDescription });
-    } catch(e) { console.error('Renegotiation error:', e); }
+    }).catch(function(e) { console.error('Renegotiation error:', e); });
   };
 
-  call.on('close', () => {
-    setStatus('ready', '● ready');
-    sysMsg('📵 Call ended');
+  call.on('close', function() {
+    setStatus('ready', 'ready');
+    sysMsg('Call ended');
     document.getElementById('remoteVideo').srcObject = null;
     document.getElementById('remotePlaceholder').style.display = 'flex';
     document.getElementById('hangBtn').style.display = 'none';
   });
 
-  call.on('error', e => sysMsg('⚠️ Call error: ' + e));
+  call.on('error', function(e) { sysMsg('Call error: ' + e); });
 }
 
 function setRemoteStream(stream) {
-  const vid = document.getElementById('remoteVideo');
+  var vid = document.getElementById('remoteVideo');
   if (vid.srcObject === stream) return;
   vid.srcObject = stream;
   document.getElementById('remotePlaceholder').style.display = 'none';
 }
 
-// ── Signaling via data channel ────────────────────────────────────────
+// ── Signaling over data channel ──────────────────────────────────────
 function sendSignal(payload) {
   if (dataConn && dataConn.open) {
-    dataConn.send(JSON.stringify({ __signal: true, ...payload }));
+    payload.__signal = true;
+    dataConn.send(JSON.stringify(payload));
   }
 }
 
-async function handleSignal(payload) {
+function handleSignal(payload) {
   if (!currentCall) return;
-  const pc = currentCall.peerConnection;
-  try {
-    if (payload.type === 'renego-offer') {
-      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+  var pc = currentCall.peerConnection;
+  if (payload.type === 'renego-offer') {
+    pc.setRemoteDescription(new RTCSessionDescription(payload.sdp)).then(function() {
+      return pc.createAnswer();
+    }).then(function(answer) {
+      return pc.setLocalDescription(answer);
+    }).then(function() {
       sendSignal({ type: 'renego-answer', sdp: pc.localDescription });
-      // Apply quality after renegotiation settles
-      setTimeout(() => { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
-    } else if (payload.type === 'renego-answer') {
-      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-      setTimeout(() => { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
-    } else if (payload.type === 'screen-stopped') {
-      sysMsg('🖥️ Friend stopped screen share');
-      const vid = document.getElementById('remoteVideo');
-      if (vid.srcObject) {
-        vid.srcObject.getVideoTracks().forEach(t => t.stop());
-        const audioTracks = vid.srcObject.getAudioTracks();
-        if (audioTracks.length === 0) {
-          vid.srcObject = null;
-          document.getElementById('remotePlaceholder').style.display = 'flex';
-        }
+      setTimeout(function() { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
+    }).catch(function(e) { console.error('Signal error:', e); });
+  } else if (payload.type === 'renego-answer') {
+    pc.setRemoteDescription(new RTCSessionDescription(payload.sdp)).then(function() {
+      setTimeout(function() { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
+    }).catch(function(e) { console.error('Signal error:', e); });
+  } else if (payload.type === 'screen-stopped') {
+    sysMsg('Friend stopped screen share');
+    var vid = document.getElementById('remoteVideo');
+    if (vid.srcObject) {
+      var vt = vid.srcObject.getVideoTracks();
+      for (var i = 0; i < vt.length; i++) vt[i].stop();
+      if (!vid.srcObject.getAudioTracks().length) {
+        vid.srcObject = null;
+        document.getElementById('remotePlaceholder').style.display = 'flex';
       }
     }
-  } catch(e) { console.error('Signal handling error:', e); }
+  }
 }
 
-// ── Data / Chat ───────────────────────────────────────────────────────
+// ── Data / Chat ──────────────────────────────────────────────────────
 function setupDataConn(conn) {
-  conn.on('open', () => sysMsg('💬 Chat connected'));
-  conn.on('data', raw => {
+  conn.on('open', function() { sysMsg('Chat connected'); });
+  conn.on('data', function(raw) {
     try {
-      const parsed = JSON.parse(raw);
+      var parsed = JSON.parse(raw);
       if (parsed.__signal) { handleSignal(parsed); return; }
     } catch(e) {}
     appendMsg('Friend', raw, 'them');
   });
-  conn.on('close', () => sysMsg('💬 Chat disconnected'));
-  conn.on('error', e => console.error(e));
+  conn.on('close', function() { sysMsg('Chat disconnected'); });
+  conn.on('error', function(e) { console.error(e); });
 }
 
 function sendMsg() {
-  const input = document.getElementById('chatInput');
-  const msg = input.value.trim();
+  var input = document.getElementById('chatInput');
+  var msg = input.value.trim();
   if (!msg) return;
-  if (!dataConn || dataConn.open !== true) {
-    sysMsg('⚠️ Chat not connected yet');
-    return;
-  }
+  if (!dataConn || dataConn.open !== true) { sysMsg('Chat not connected yet'); return; }
   dataConn.send(msg);
   appendMsg('You', msg, 'me');
   input.value = '';
 }
 
 function appendMsg(name, text, type) {
-  const chat = document.getElementById('chatMessages');
-  const div = document.createElement('div');
+  var chat = document.getElementById('chatMessages');
+  var div = document.createElement('div');
   div.className = 'msg ' + type;
-  div.innerHTML = (type !== 'system' && type !== 'me' ? `<div class="msg-name">${name}</div>` : '') +
-    `<div class="msg-bubble">${escHtml(text)}</div>`;
+  var nameHtml = (type !== 'system' && type !== 'me') ? '<div class="msg-name">' + name + '</div>' : '';
+  div.innerHTML = nameHtml + '<div class="msg-bubble">' + escHtml(String(text)) + '</div>';
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-function sysMsg(text) {
-  appendMsg('', text, 'system');
-}
+function sysMsg(text) { appendMsg('', text, 'system'); }
 
-// ── Controls ──────────────────────────────────────────────────────────
+// ── Mute ─────────────────────────────────────────────────────────────
 function toggleMute() {
-  if (!localStream) return;
   isMuted = !isMuted;
-  localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
-  // Also mute the mic node in the audio mixer if active
-  if (mixedStream) {
-    mixedStream._micGain && (mixedStream._micGain.gain.value = isMuted ? 0 : 1);
+  if (localStream) {
+    var tracks = localStream.getAudioTracks();
+    for (var i = 0; i < tracks.length; i++) tracks[i].enabled = !isMuted;
   }
-  const btn = document.getElementById('muteBtn');
-  btn.textContent = isMuted ? '🔇 Unmute' : '🎙️ Mute';
+  if (micGainNode) micGainNode.gain.value = isMuted ? 0 : 1;
+  var btn = document.getElementById('muteBtn');
+  btn.textContent = isMuted ? 'Unmute' : 'Mute';
   btn.classList.toggle('muted', isMuted);
 }
 
-// ── Screen Share with mixed audio ─────────────────────────────────────
-async function toggleScreen() {
+// ── Screen Share with audio mixing ────────────────────────────────────
+function toggleScreen() {
   if (isScreenSharing) {
-    isNegotiating = true;
-
-    // Stop all screen tracks
-    if (screenStream) screenStream.getTracks().forEach(t => t.stop());
-    // Close audio context
-    if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; mixerDest = null; }
-    screenStream = null;
-    mixedStream = null;
-    isScreenSharing = false;
-
-    document.getElementById('localVideo').srcObject = localStream;
-    document.getElementById('localPlaceholder').style.display = 'flex';
-    document.getElementById('screenBtn').textContent = '🖥️ Screen';
-    document.getElementById('screenBtn').classList.remove('active');
-
-    if (currentCall) {
-      const pc = currentCall.peerConnection;
-      // Remove video senders
-      pc.getSenders()
-        .filter(s => s.track && s.track.kind === 'video')
-        .forEach(s => pc.removeTrack(s));
-      // Remove the mixed audio sender, restore original mic sender
-      // Find extra audio senders (more than 1 means we added mixed audio)
-      const audioSenders = pc.getSenders().filter(s => s.track && s.track.kind === 'audio');
-      // Keep only the first, remove extras
-      audioSenders.slice(1).forEach(s => pc.removeTrack(s));
-      // Restore mic track on first audio sender
-      if (audioSenders[0]) audioSenders[0].replaceTrack(localStream.getAudioTracks()[0]).catch(()=>{});
-
-      try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        sendSignal({ type: 'renego-offer', sdp: pc.localDescription });
-      } catch(e) { console.error(e); }
-    }
-
-    sendSignal({ type: 'screen-stopped' });
-    isNegotiating = false;
+    stopScreen();
     return;
   }
+  startScreen();
+}
 
-  try {
-    // Request highest quality screen capture
-    screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        width: { ideal: 3840, max: 3840 },
-        height: { ideal: 2160, max: 2160 },
-        frameRate: { ideal: 30, max: 60 },
-        cursor: 'always'
-      },
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        sampleRate: 48000
-      }
-    });
+function stopScreen() {
+  isNegotiating = true;
+  if (screenStream) {
+    var tracks = screenStream.getTracks();
+    for (var i = 0; i < tracks.length; i++) tracks[i].stop();
+  }
+  if (audioCtx) { audioCtx.close().catch(function(){}); audioCtx = null; mixerDest = null; micGainNode = null; }
+  screenStream = null;
+  isScreenSharing = false;
 
-    const videoTrack = screenStream.getVideoTracks()[0];
-    // Apply best quality constraints to the video track
-    if (videoTrack.applyConstraints) {
-      videoTrack.applyConstraints({
-        width: { ideal: 3840 },
-        height: { ideal: 2160 },
-        frameRate: { ideal: 30 }
-      }).catch(() => {});
+  document.getElementById('localVideo').srcObject = localStream;
+  document.getElementById('localPlaceholder').style.display = 'flex';
+  document.getElementById('screenBtn').textContent = 'Screen';
+  document.getElementById('screenBtn').classList.remove('active');
+
+  if (currentCall) {
+    var pc = currentCall.peerConnection;
+    var senders = pc.getSenders();
+    for (var i = 0; i < senders.length; i++) {
+      if (senders[i].track && senders[i].track.kind === 'video') pc.removeTrack(senders[i]);
     }
+    // Restore plain mic on audio sender
+    var micTrack = localStream.getAudioTracks()[0];
+    var audioSender = null;
+    var s2 = pc.getSenders();
+    for (var j = 0; j < s2.length; j++) {
+      if (s2[j].track && s2[j].track.kind === 'audio') { audioSender = s2[j]; break; }
+    }
+    if (audioSender && micTrack) audioSender.replaceTrack(micTrack).catch(function(){});
 
-    // ── Mix mic + system audio ──────────────────────────────────────
+    pc.createOffer().then(function(offer) {
+      return pc.setLocalDescription(offer);
+    }).then(function() {
+      sendSignal({ type: 'renego-offer', sdp: pc.localDescription });
+    }).catch(function(e) { console.error(e); });
+  }
+
+  sendSignal({ type: 'screen-stopped' });
+  isNegotiating = false;
+}
+
+function startScreen() {
+  navigator.mediaDevices.getDisplayMedia({
+    video: {
+      width:     { ideal: 3840, max: 3840 },
+      height:    { ideal: 2160, max: 2160 },
+      frameRate: { ideal: 30, max: 60 },
+      cursor: 'always'
+    },
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      sampleRate: 48000
+    }
+  }).then(function(stream) {
+    screenStream = stream;
+    var videoTrack = stream.getVideoTracks()[0];
+
+    // Build audio mixer: mic + system audio → one combined track
     audioCtx = new AudioContext({ sampleRate: 48000 });
     mixerDest = audioCtx.createMediaStreamDestination();
 
-    // Mic source
-    const micSource = audioCtx.createMediaStreamSource(localStream);
-    const micGain = audioCtx.createGain();
-    micGain.gain.value = isMuted ? 0 : 1;
-    micSource.connect(micGain);
-    micGain.connect(mixerDest);
+    var micSource = audioCtx.createMediaStreamSource(localStream);
+    micGainNode = audioCtx.createGain();
+    micGainNode.gain.value = isMuted ? 0 : 1;
+    micSource.connect(micGainNode);
+    micGainNode.connect(mixerDest);
 
-    // System/tab audio source (if the browser captured it)
-    const sysAudioTracks = screenStream.getAudioTracks();
-    if (sysAudioTracks.length > 0) {
-      const sysSource = audioCtx.createMediaStreamSource(new MediaStream(sysAudioTracks));
-      const sysGain = audioCtx.createGain();
+    var sysTracks = stream.getAudioTracks();
+    if (sysTracks.length > 0) {
+      var sysSource = audioCtx.createMediaStreamSource(new MediaStream(sysTracks));
+      var sysGain = audioCtx.createGain();
       sysGain.gain.value = 1;
       sysSource.connect(sysGain);
       sysGain.connect(mixerDest);
-      sysMsg('🔊 System audio captured — friend will hear screen audio too');
+      sysMsg('System audio captured — friend hears your screen audio too');
     } else {
-      sysMsg('ℹ️ No system audio captured (make sure to check "Share audio" in the dialog)');
+      sysMsg('No system audio detected — tick "Share audio" in the browser dialog next time');
     }
 
-    // The mixed audio track that goes to the peer
-    const mixedAudioTrack = mixerDest.stream.getAudioTracks()[0];
-    // Expose mic gain node for mute toggle
-    mixerDest.stream._micGain = micGain;
+    var mixedAudioTrack = mixerDest.stream.getAudioTracks()[0];
 
-    // Update local video preview
-    document.getElementById('localVideo').srcObject = screenStream;
+    document.getElementById('localVideo').srcObject = stream;
     document.getElementById('localPlaceholder').style.display = 'none';
     isScreenSharing = true;
-    document.getElementById('screenBtn').textContent = '⏹ Stop';
+    document.getElementById('screenBtn').textContent = 'Stop';
     document.getElementById('screenBtn').classList.add('active');
-    sysMsg('🖥️ Screen share started — friend can see your screen');
+    sysMsg('Screen sharing started — friend can see your screen');
 
     if (currentCall) {
       isNegotiating = true;
-      const pc = currentCall.peerConnection;
+      var pc = currentCall.peerConnection;
 
-      // Replace the existing mic audio sender with the mixed audio track
-      const audioSender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+      // Replace mic with mixed audio (no renegotiation needed)
+      var senders = pc.getSenders();
+      var audioSender = null;
+      for (var i = 0; i < senders.length; i++) {
+        if (senders[i].track && senders[i].track.kind === 'audio') { audioSender = senders[i]; break; }
+      }
       if (audioSender) {
-        await audioSender.replaceTrack(mixedAudioTrack);
+        audioSender.replaceTrack(mixedAudioTrack).catch(function(){});
       } else {
         pc.addTrack(mixedAudioTrack, mixerDest.stream);
       }
 
-      // Add the video track (triggers onnegotiationneeded)
-      pc.addTrack(videoTrack, screenStream);
-      // onnegotiationneeded fires → sends offer → friend gets video + mixed audio
+      // Add video — triggers onnegotiationneeded → offer → friend gets video
+      pc.addTrack(videoTrack, stream);
     }
 
-    videoTrack.onended = () => { if (isScreenSharing) toggleScreen(); };
+    videoTrack.onended = function() { if (isScreenSharing) stopScreen(); };
 
-  } catch(e) {
-    sysMsg('⚠️ Screen share failed: ' + e.message);
-    if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
-  }
+  }).catch(function(e) {
+    sysMsg('Screen share failed: ' + e.message);
+    if (audioCtx) { audioCtx.close().catch(function(){}); audioCtx = null; }
+  });
 }
 
+// ── Hang up ──────────────────────────────────────────────────────────
 function hangUp() {
+  if (isScreenSharing) stopScreen();
   if (currentCall) { currentCall.close(); currentCall = null; }
-  if (dataConn) { dataConn.close(); dataConn = null; }
-  if (audioCtx) { audioCtx.close().catch(()=>{}); audioCtx = null; }
+  if (dataConn)   { dataConn.close(); dataConn = null; }
   document.getElementById('hangBtn').style.display = 'none';
-  setStatus('ready', '● ready');
-  sysMsg('📵 You hung up');
+  setStatus('ready', 'ready');
+  sysMsg('You hung up');
 }
 
 // ── Fullscreen on double-click ────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  ['localVideo','remoteVideo'].forEach(id => {
-    document.getElementById(id).addEventListener('dblclick', function() {
+var wrappers = document.querySelectorAll('.video-wrapper');
+for (var w = 0; w < wrappers.length; w++) {
+  wrappers[w].addEventListener('dblclick', (function(wrapper) {
+    return function() {
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else {
-        this.closest('.video-wrapper').requestFullscreen().catch(() => this.requestFullscreen().catch(()=>{}));
+        wrapper.requestFullscreen().catch(function() {
+          wrapper.querySelector('video').requestFullscreen().catch(function(){});
+        });
       }
-    });
-  });
-});
+    };
+  })(wrappers[w]));
+}
 
-// ── Helpers ───────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────
 function copyRoomId() {
-  const id = document.getElementById('myIdDisplay').textContent;
+  var id = document.getElementById('myIdDisplay').textContent;
   if (id === '——') return;
-  navigator.clipboard.writeText(id).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ Copied!';
+  navigator.clipboard.writeText(id).then(function() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
     btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
   });
 }
 
 function setStatus(cls, text) {
-  const pill = document.getElementById('statusPill');
+  var pill = document.getElementById('statusPill');
   pill.className = 'status-pill ' + cls;
   pill.textContent = text;
 }
@@ -1018,7 +867,7 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────
+// ── Boot ─────────────────────────────────────────────────────────────
 initPeer();
 </script>
 </body>
