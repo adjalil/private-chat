@@ -38,6 +38,7 @@
     let localStream;
     let peerConnection;
     let dataChannel;
+    // STUN servers help peers find each other behind firewalls
     const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     function updateStatus(msg) {
@@ -46,44 +47,48 @@
     }
 
     async function init() {
-        updateStatus("Requesting Camera/Mic...");
+        updateStatus("Requesting Microphone (Audio Only)...");
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            // We set video: false because you don't have a camera
+            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            updateStatus("Microphone active.");
+            
+            // Even though there is no video, we attach the stream to hear yourself test
             document.getElementById('localVideo').srcObject = localStream;
-            updateStatus("Camera/Mic active.");
         } catch (e) {
-            updateStatus("ERROR: " + e.message);
+            updateStatus("CRITICAL ERROR: " + e.message);
+            alert("Mic error: " + e.message + ". Ensure your mic is plugged in.");
         }
     }
 
     async function startCall() {
         if (!localStream) await init();
         
-        updateStatus("Creating Peer Connection...");
+        updateStatus("Creating Connection...");
         peerConnection = new RTCPeerConnection(config);
         
+        // Add only the audio track
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
+        // Setup Chat
         dataChannel = peerConnection.createDataChannel("chat");
         setupDataChannel();
 
-        // This creates the 'Link' text
         peerConnection.onicecandidate = e => {
             if (e.candidate) {
-                updateStatus("Finding network path...");
+                updateStatus("Building connection link...");
             } else {
-                updateStatus("Link generation complete!");
+                updateStatus("Link ready! Copy the code below.");
             }
-            // Update the box every time a new path is found
             document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
         };
 
+        // When your friend sends audio or screen share
         peerConnection.ontrack = e => {
-            updateStatus("Remote video received!");
+            updateStatus("Friend connected! Audio/Video started.");
             document.getElementById('remoteVideo').srcObject = e.streams[0];
         };
 
-        updateStatus("Creating Offer...");
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
@@ -107,13 +112,12 @@
             peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
             peerConnection.ondatachannel = e => { dataChannel = e.channel; setupDataChannel(); };
             
-            updateStatus("Setting remote description...");
             await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
-            updateStatus("Creating Answer...");
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
+            updateStatus("Answer generated. Send this back to your friend.");
         } else {
-            updateStatus("Finalizing connection...");
+            updateStatus("Connecting...");
             await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
         }
     }
@@ -133,17 +137,32 @@
     }
 
     function appendChat(user, msg) {
-        document.getElementById('chat').innerHTML += `<br><b>${user}:</b> ${msg}`;
-        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        const chat = document.getElementById('chat');
+        chat.innerHTML += `<br><b>${user}:</b> ${msg}`;
+        chat.scrollTop = chat.scrollHeight;
     }
 
     async function shareScreen() {
-        updateStatus("Requesting Screen Share...");
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const videoTrack = screenStream.getVideoTracks()[0];
-        const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-        sender.replaceTrack(videoTrack);
-        document.getElementById('localVideo').srcObject = screenStream;
+        updateStatus("Requesting Screen...");
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const videoTrack = screenStream.getVideoTracks()[0];
+            
+            // Replace the "empty" video with the screen track
+            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) {
+                sender.replaceTrack(videoTrack);
+            } else {
+                // If we didn't have a video track, add it now
+                peerConnection.addTrack(videoTrack, screenStream);
+                // Note: Adding a track after connection requires a "re-negotiation"
+                // For simplicity, it's best to start screen share before clicking Generate.
+            }
+            document.getElementById('localVideo').srcObject = screenStream;
+            updateStatus("Screen sharing active.");
+        } catch (e) {
+            updateStatus("Screen share failed: " + e.message);
+        }
     }
 </script>
 </body>
