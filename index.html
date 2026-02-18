@@ -35,81 +35,98 @@
     <button onclick="sendMessage()">Send</button>
 
     <script>
-        let localStream;
-        let peerConnection;
-        let dataChannel;
-        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let localStream;
+    let peerConnection;
+    let dataChannel;
+    // Standard Google STUN server to help find your connection path
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        async function init() {
+    async function init() {
+        try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('localVideo').srcObject = localStream;
+        } catch (e) {
+            alert("Camera/Mic access denied. Please allow permissions in your browser bar.");
         }
+    }
 
-        async function startCall() {
+    async function startCall() {
+        await init();
+        peerConnection = new RTCPeerConnection(config);
+        
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        dataChannel = peerConnection.createDataChannel("chat");
+        setupDataChannel();
+
+        // Updated: This will show the link immediately as it updates
+        peerConnection.onicecandidate = e => {
+            document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
+        };
+
+        peerConnection.ontrack = e => {
+            document.getElementById('remoteVideo').srcObject = e.streams[0];
+        };
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Show the initial offer immediately in case ICE takes a while
+        document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
+    }
+
+    async function answerCall() {
+        const input = document.getElementById('answerText').value;
+        if (!input) return alert("Please paste your friend's code first!");
+        
+        const remoteData = JSON.parse(input);
+        
+        if (!peerConnection) { 
             await init();
             peerConnection = new RTCPeerConnection(config);
-            
-            // Add media tracks
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            // Setup Data Channel for Text Chat
-            dataChannel = peerConnection.createDataChannel("chat");
-            setupDataChannel();
-
-            peerConnection.onicecandidate = e => {
-                if (!e.candidate) document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
-            };
-
-            peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-        }
-
-        async function answerCall() {
-            const remoteData = JSON.parse(document.getElementById('answerText').value);
             
-            if (!peerConnection) { // This is the person receiving the call
-                await init();
-                peerConnection = new RTCPeerConnection(config);
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                peerConnection.onicecandidate = e => {
-                    if (!e.candidate) document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
-                };
-                peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
-                peerConnection.ondatachannel = e => { dataChannel = e.channel; setupDataChannel(); };
-                
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-            } else { // This is the person who started the call finishing the handshake
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
-            }
+            peerConnection.onicecandidate = e => {
+                document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
+            };
+            
+            peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
+            peerConnection.ondatachannel = e => { dataChannel = e.channel; setupDataChannel(); };
+            
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+        } else {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
         }
+    }
 
-        function setupDataChannel() {
-            dataChannel.onopen = () => appendChat("System", "Connected!");
-            dataChannel.onmessage = e => appendChat("Friend", e.data);
-        }
+    function setupDataChannel() {
+        dataChannel.onopen = () => appendChat("System", "Connected! You can now chat.");
+        dataChannel.onmessage = e => appendChat("Friend", e.data);
+    }
 
-        function sendMessage() {
-            const msg = document.getElementById('msgInput').value;
+    function sendMessage() {
+        const msg = document.getElementById('msgInput').value;
+        if (dataChannel && dataChannel.readyState === "open") {
             dataChannel.send(msg);
             appendChat("Me", msg);
             document.getElementById('msgInput').value = "";
         }
+    }
 
-        function appendChat(user, msg) {
-            document.getElementById('chat').innerHTML += `<br><b>${user}:</b> ${msg}`;
-        }
+    function appendChat(user, msg) {
+        document.getElementById('chat').innerHTML += `<br><b>${user}:</b> ${msg}`;
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    }
 
-        async function shareScreen() {
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            const videoTrack = screenStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-            sender.replaceTrack(videoTrack);
-            document.getElementById('localVideo').srcObject = screenStream;
-        }
-    </script>
+    async function shareScreen() {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const videoTrack = screenStream.getVideoTracks()[0];
+        const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+        sender.replaceTrack(videoTrack);
+        document.getElementById('localVideo').srcObject = screenStream;
+    }
+</script>
 </body>
 </html>
