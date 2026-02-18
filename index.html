@@ -38,20 +38,28 @@
     let localStream;
     let peerConnection;
     let dataChannel;
-    // Standard Google STUN server to help find your connection path
     const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
+    function updateStatus(msg) {
+        document.getElementById('chat').innerHTML += `<br><i style="color:yellow">Status: ${msg}</i>`;
+        console.log(msg);
+    }
+
     async function init() {
+        updateStatus("Requesting Camera/Mic...");
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('localVideo').srcObject = localStream;
+            updateStatus("Camera/Mic active.");
         } catch (e) {
-            alert("Camera/Mic access denied. Please allow permissions in your browser bar.");
+            updateStatus("ERROR: " + e.message);
         }
     }
 
     async function startCall() {
-        await init();
+        if (!localStream) await init();
+        
+        updateStatus("Creating Peer Connection...");
         peerConnection = new RTCPeerConnection(config);
         
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
@@ -59,25 +67,31 @@
         dataChannel = peerConnection.createDataChannel("chat");
         setupDataChannel();
 
-        // Updated: This will show the link immediately as it updates
+        // This creates the 'Link' text
         peerConnection.onicecandidate = e => {
+            if (e.candidate) {
+                updateStatus("Finding network path...");
+            } else {
+                updateStatus("Link generation complete!");
+            }
+            // Update the box every time a new path is found
             document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
         };
 
         peerConnection.ontrack = e => {
+            updateStatus("Remote video received!");
             document.getElementById('remoteVideo').srcObject = e.streams[0];
         };
 
+        updateStatus("Creating Offer...");
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        
-        // Show the initial offer immediately in case ICE takes a while
         document.getElementById('offerText').value = JSON.stringify(peerConnection.localDescription);
     }
 
     async function answerCall() {
         const input = document.getElementById('answerText').value;
-        if (!input) return alert("Please paste your friend's code first!");
+        if (!input) return alert("Paste your friend's code first!");
         
         const remoteData = JSON.parse(input);
         
@@ -93,16 +107,19 @@
             peerConnection.ontrack = e => document.getElementById('remoteVideo').srcObject = e.streams[0];
             peerConnection.ondatachannel = e => { dataChannel = e.channel; setupDataChannel(); };
             
+            updateStatus("Setting remote description...");
             await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
+            updateStatus("Creating Answer...");
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
         } else {
+            updateStatus("Finalizing connection...");
             await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteData));
         }
     }
 
     function setupDataChannel() {
-        dataChannel.onopen = () => appendChat("System", "Connected! You can now chat.");
+        dataChannel.onopen = () => updateStatus("CHAT CONNECTED!");
         dataChannel.onmessage = e => appendChat("Friend", e.data);
     }
 
@@ -121,6 +138,7 @@
     }
 
     async function shareScreen() {
+        updateStatus("Requesting Screen Share...");
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         const videoTrack = screenStream.getVideoTracks()[0];
         const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
