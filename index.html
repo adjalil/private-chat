@@ -407,9 +407,9 @@
 var peer, currentCall, dataConn;
 var localStream, screenStream;
 var audioCtx, mixerDest, micGainNode;
+var remoteStream = null; // FIX: persistent composite remote stream
 var isMuted = false;
 var isScreenSharing = false;
-var isNegotiating = false;
 
 // ── Random 6-char Room ID ────────────────────────────────────────────
 function genId() {
@@ -434,7 +434,10 @@ function initPeer() {
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        // FIX: free TURN servers so symmetric NATs (mobile/corporate) can connect
+        { urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     }
   });
@@ -562,31 +565,44 @@ function callFriend() {
 }
 
 function handleCallStream(call) {
-  call.on('stream', function(remoteStream) {
-    setRemoteStream(remoteStream);
+  // FIX: initialize persistent composite remote stream once
+  remoteStream = new MediaStream();
+  var vid = document.getElementById('remoteVideo');
+  vid.srcObject = remoteStream;
+
+  call.on('stream', function(initialStream) {
+    // PeerJS fires 'stream' with the initial remote stream - pull all tracks into remoteStream
+    initialStream.getTracks().forEach(function(t) {
+      _addOrReplaceRemoteTrack(t);
+    });
     setStatus('connected', 'connected');
     sysMsg('Connected!');
     setTimeout(function() { applyAudioQuality(call.peerConnection); }, 500);
   });
 
-  // Catch tracks added later (screen share renegotiation)
+  // FIX: ontrack fires for every new/replaced track - add to persistent remoteStream
+  // This is the critical fix for audio dropping during screen share
   call.peerConnection.ontrack = function(e) {
-    if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]);
+    _addOrReplaceRemoteTrack(e.track);
+    // When a track ends (e.g. screen share stopped on sender side), remove it
+    e.track.onended = function() {
+      if (remoteStream) remoteStream.removeTrack(e.track);
+      // Show placeholder if no video tracks remain
+      if (!remoteStream || !remoteStream.getVideoTracks().length) {
+        document.getElementById('remotePlaceholder').style.display = 'flex';
+      }
+    };
   };
 
-  // Renegotiation: fires when WE add/remove tracks
+  // FIX: onnegotiationneeded - only handle if call is active, prevent auto-fire from PeerJS setup
   call.peerConnection.onnegotiationneeded = function() {
-    if (!isNegotiating) return;
-    call.peerConnection.createOffer().then(function(offer) {
-      return call.peerConnection.setLocalDescription(offer);
-    }).then(function() {
-      sendSignal({ type: 'renego-offer', sdp: call.peerConnection.localDescription });
-    }).catch(function(e) { console.error('Renegotiation error:', e); });
+    // We manage all renegotiation explicitly - ignore browser-triggered events
   };
 
   call.on('close', function() {
     setStatus('ready', 'ready');
     sysMsg('Call ended');
+    remoteStream = null;
     document.getElementById('remoteVideo').srcObject = null;
     document.getElementById('remotePlaceholder').style.display = 'flex';
     document.getElementById('hangBtn').style.display = 'none';
@@ -595,11 +611,15 @@ function handleCallStream(call) {
   call.on('error', function(e) { sysMsg('Call error: ' + e); });
 }
 
-function setRemoteStream(stream) {
-  var vid = document.getElementById('remoteVideo');
-  if (vid.srcObject === stream) return;
-  vid.srcObject = stream;
-  document.getElementById('remotePlaceholder').style.display = 'none';
+// FIX: helper - add a track to remoteStream, replacing any existing track of same kind
+function _addOrReplaceRemoteTrack(track) {
+  if (!remoteStream) return;
+  var existing = track.kind === 'audio' ? remoteStream.getAudioTracks() : remoteStream.getVideoTracks();
+  existing.forEach(function(t) { remoteStream.removeTrack(t); });
+  remoteStream.addTrack(track);
+  if (remoteStream.getTracks().length > 0) {
+    document.getElementById('remotePlaceholder').style.display = 'none';
+  }
 }
 
 // ── Signaling over data channel ──────────────────────────────────────
@@ -628,15 +648,15 @@ function handleSignal(payload) {
     }).catch(function(e) { console.error('Signal error:', e); });
   } else if (payload.type === 'screen-stopped') {
     sysMsg('Friend stopped screen share');
-    var vid = document.getElementById('remoteVideo');
-    if (vid.srcObject) {
-      var vt = vid.srcObject.getVideoTracks();
-      for (var i = 0; i < vt.length; i++) vt[i].stop();
-      if (!vid.srcObject.getAudioTracks().length) {
-        vid.srcObject = null;
-        document.getElementById('remotePlaceholder').style.display = 'flex';
-      }
+    // FIX: remove video tracks from persistent remoteStream instead of nuking srcObject
+    if (remoteStream) {
+      remoteStream.getVideoTracks().forEach(function(t) {
+        t.stop();
+        remoteStream.removeTrack(t);
+      });
     }
+    // Show placeholder (no video) but keep audio streaming
+    document.getElementById('remotePlaceholder').style.display = 'flex';
   }
 }
 
@@ -699,7 +719,6 @@ function toggleScreen() {
 }
 
 function stopScreen() {
-  isNegotiating = true;
   if (screenStream) {
     var tracks = screenStream.getTracks();
     for (var i = 0; i < tracks.length; i++) tracks[i].stop();
@@ -715,11 +734,14 @@ function stopScreen() {
 
   if (currentCall) {
     var pc = currentCall.peerConnection;
+
+    // Remove video senders
     var senders = pc.getSenders();
     for (var i = 0; i < senders.length; i++) {
       if (senders[i].track && senders[i].track.kind === 'video') pc.removeTrack(senders[i]);
     }
-    // Restore plain mic on audio sender
+
+    // Restore plain mic track on audio sender
     var micTrack = localStream.getAudioTracks()[0];
     var audioSender = null;
     var s2 = pc.getSenders();
@@ -728,6 +750,7 @@ function stopScreen() {
     }
     if (audioSender && micTrack) audioSender.replaceTrack(micTrack).catch(function(){});
 
+    // FIX: only one explicit offer - no onnegotiationneeded firing (we disabled it)
     pc.createOffer().then(function(offer) {
       return pc.setLocalDescription(offer);
     }).then(function() {
@@ -736,7 +759,6 @@ function stopScreen() {
   }
 
   sendSignal({ type: 'screen-stopped' });
-  isNegotiating = false;
 }
 
 function startScreen() {
@@ -788,10 +810,9 @@ function startScreen() {
     sysMsg('Screen sharing started — friend can see your screen');
 
     if (currentCall) {
-      isNegotiating = true;
       var pc = currentCall.peerConnection;
 
-      // Replace mic with mixed audio (no renegotiation needed)
+      // Replace mic with mixed audio (no renegotiation needed - replaceTrack is seamless)
       var senders = pc.getSenders();
       var audioSender = null;
       for (var i = 0; i < senders.length; i++) {
@@ -803,8 +824,15 @@ function startScreen() {
         pc.addTrack(mixedAudioTrack, mixerDest.stream);
       }
 
-      // Add video — triggers onnegotiationneeded → offer → friend gets video
+      // FIX: add video track then explicitly create and send the renegotiation offer
+      // (we disabled onnegotiationneeded to avoid double-offers, so must do this manually)
       pc.addTrack(videoTrack, stream);
+      pc.createOffer().then(function(offer) {
+        return pc.setLocalDescription(offer);
+      }).then(function() {
+        sendSignal({ type: 'renego-offer', sdp: pc.localDescription });
+        setTimeout(function() { applyAudioQuality(pc); applyScreenQuality(pc); }, 500);
+      }).catch(function(e) { console.error('Screen share offer error:', e); });
     }
 
     videoTrack.onended = function() { if (isScreenSharing) stopScreen(); };
@@ -820,6 +848,7 @@ function hangUp() {
   if (isScreenSharing) stopScreen();
   if (currentCall) { currentCall.close(); currentCall = null; }
   if (dataConn)   { dataConn.close(); dataConn = null; }
+  remoteStream = null;
   document.getElementById('hangBtn').style.display = 'none';
   setStatus('ready', 'ready');
   sysMsg('You hung up');
